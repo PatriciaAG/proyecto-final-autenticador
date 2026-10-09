@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
-import com.example.proyecto_final.autenticarConBiometria
+import com.example.proyecto_final.services.autenticarConBiometria
 import com.example.proyecto_final.services.GoogleAuthHelper
 import kotlinx.coroutines.launch
 
@@ -18,7 +18,7 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     //Biométrica
-    /*val activity = context as FragmentActivity*/
+    val activity = context as FragmentActivity
 
     val scope = rememberCoroutineScope()
     val googleAuthHelper = remember {
@@ -74,7 +74,7 @@ fun LoginScreen(
         Button(
             onClick = {
                 // BIOMETRÍA
-                /*autenticarConBiometria(
+                autenticarConBiometria(
                     activity = activity,
 
                     onSuccess = {
@@ -85,8 +85,8 @@ fun LoginScreen(
                     onError = { error ->
                         println("Error biométrico: $error")
                     }
-                )*/
-            },
+                )
+                      },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Ingresar con huella / biometría")

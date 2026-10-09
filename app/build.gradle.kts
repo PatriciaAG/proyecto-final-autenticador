@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.proyecto_final"
-        minSdk = 35
+        minSdk = 33
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -59,6 +59,16 @@ dependencies {
     // Compose
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.material3:material3")
+    //reproductor de multimeda
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-common:1.8.0")
+
+    //FireStore
+    implementation(platform("com.google.firebase:firebase-bom:VERSION"))
+
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

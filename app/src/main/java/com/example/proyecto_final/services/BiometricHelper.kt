@@ -1,4 +1,4 @@
-package com.example.proyecto_final
+package com.example.proyecto_final.services
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
@@ -9,29 +9,23 @@ fun autenticarConBiometria(
     onError: (String) -> Unit
 ) {
 
-    val executor = activity.mainExecutor
-
     val biometricManager = BiometricManager.from(activity)
 
     val resultado = biometricManager.canAuthenticate(
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        BiometricManager.Authenticators.BIOMETRIC_STRONG
     )
 
-    if (
-        resultado != BiometricManager.BIOMETRIC_SUCCESS
-    ) {
-        onError("El dispositivo no tiene una autenticación disponible.")
+    if (resultado != BiometricManager.BIOMETRIC_SUCCESS) {
+        onError("El dispositivo no tiene una biometría disponible.")
         return
     }
+
+    val executor = activity.mainExecutor
 
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Autenticación")
         .setSubtitle("Confirma tu identidad")
-        .setAllowedAuthenticators(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        )
+        .setNegativeButtonText("Cancelar")
         .build()
 
     val biometricPrompt = BiometricPrompt(
@@ -43,7 +37,6 @@ fun autenticarConBiometria(
                 result: BiometricPrompt.AuthenticationResult
             ) {
                 super.onAuthenticationSucceeded(result)
-
                 onSuccess()
             }
 
@@ -51,12 +44,13 @@ fun autenticarConBiometria(
                 errorCode: Int,
                 errString: CharSequence
             ) {
-                super.onAuthenticationError(
-                    errorCode,
-                    errString
-                )
-
+                super.onAuthenticationError(errorCode, errString)
                 onError(errString.toString())
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                onError("La autenticación no fue reconocida.")
             }
         }
     )
