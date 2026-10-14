@@ -27,7 +27,6 @@ class MainActivity : FragmentActivity(){
                 modifier = Modifier.fillMaxSize().statusBarsPadding()
             ) {
 
-                // Reproductor fijo en la parte superior
                 ReproductorAudio(
                     modifier = Modifier.fillMaxWidth()
                 )

@@ -1,7 +1,6 @@
 package com.example.proyecto_final.data
 
 data class Persona(
-
     val uid: String = "",
     val nombre: String = "",
     val apellido: String = "",
