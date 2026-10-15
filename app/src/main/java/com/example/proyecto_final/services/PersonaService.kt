@@ -9,196 +9,135 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.DataOutputStream
+import java.net.HttpURLConnection
 import java.net.URL
 
 class PersonaService {
-
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
 
+    companion object {
+        private const val CLOUD_NAME = "dzhwqsqqk"
+        private const val UPLOAD_PRESET = "persona_android"
+    }
+
     suspend fun registrarPersonaDesdeGoogle(): Result<Unit> {
-        Log.d("PERSONA_FIRESTORE", "INICIO DEL REGISTRO")
+        Log.d("PERSONA_FIRESTORE", "Entró a registrarPersonaDesdeGoogle()")
 
         return try {
-            val user = auth.currentUser
-                ?: throw Exception("No existe una sesión activa en Firebase")
-
+            val user = auth.currentUser?: throw Exception("No existe una sesión activa en Firebase")
             val uid = user.uid
-
             Log.d("PERSONA_FIRESTORE", "UID: $uid")
             Log.d("PERSONA_FIRESTORE", "Correo: ${user.email}")
 
-            val referencia = firestore
-                .collection("persona")
-                .document(uid)
+            val persona = firestore.collection("persona").document(uid)
 
             Log.d("PERSONA_FIRESTORE", "ANTES DE CONSULTAR DOCUMENTO")
-
-            val documento = referencia.get().await()
-
-            Log.d(
-                "PERSONA_FIRESTORE",
-                "CONSULTA COMPLETADA. Existe: ${documento.exists()}"
-            )
+            val documento = persona.get().await()
+            Log.d("PERSONA_FIRESTORE", "CONSULTA COMPLETADA. Existe: ${documento.exists()}")
 
             val datos = hashMapOf<String, Any>(
                 "uid" to uid,
                 "nombre" to (user.displayName ?: ""),
                 "email" to (user.email ?: ""),
                 "fotoUrl" to (documento.getString("fotoUrl") ?: ""),
-                "fechaRegistro" to (
-                        documento.getLong("fechaRegistro")
-                            ?: System.currentTimeMillis()
-                        )
+                "fechaRegistro" to (documento.getLong("fechaRegistro")?: System.currentTimeMillis())
             )
 
             Log.d("PERSONA_FIRESTORE", "ANTES DE GUARDAR DOCUMENTO")
 
-            referencia.set(datos).await()
+            persona.set(datos).await()
 
-            Log.d(
-                "PERSONA_FIRESTORE",
-                "DOCUMENTO GUARDADO: persona/$uid"
-            )
-
+            Log.d("PERSONA_FIRESTORE","DOCUMENTO GUARDADO: persona/$uid")
             val fotoGoogle = user.photoUrl
 
             if (fotoGoogle != null) {
                 try {
-                    Log.d("PERSONA_FIRESTORE", "INICIO DE SUBIDA DE FOTO")
+                    Log.d("FOTO_CLOUDINARY", "INICIO DE DESCARGA DE FOTO GOOGLE")
 
                     val bytes = withContext(Dispatchers.IO) {
-                        URL(fotoGoogle.toString())
-                            .openStream()
-                            .use { it.readBytes() }
+                        URL(fotoGoogle.toString()).openStream().use { it.readBytes() }
                     }
+                    require(bytes.isNotEmpty()) { "La imagen descargada está vacía" }
 
-                    val archivo = storage.reference
-                        .child("imagenes/persona/$uid/perfil.jpg")
-
+                    require(bytes.size <= 5 * 1024 * 1024) { "La imagen supera el límite de 5 MB" }
+                    Log.d("CLOUDINARY", "SUBIENDO FOTO A CLOUDINARY")
+                    val fotoUrl = subirFotoCloudinary(bytes, uid)
+                    persona.update("fotoUrl", fotoUrl).await()
+                    Log.d("CLOUDINARY", "FOTO GUARDADA EN CLOUDINARY Y URL ACTUALIZADA")
+                    /*val archivo = storage.reference.child("imagenes/persona/$uid/perfil.jpg")
                     archivo.putBytes(bytes).await()
-
                     val fotoUrl = archivo.downloadUrl.await().toString()
-
-                    referencia.update("fotoUrl", fotoUrl).await()
-
-                    Log.d("PERSONA_FIRESTORE", "FOTO GUARDADA CORRECTAMENTE")
+                    persona.update("fotoUrl", fotoUrl).await()
+                    Log.d("PERSONA_FIRESTORE", "FOTO GUARDADA CORRECTAMENTE")*/
                 } catch (e: Exception) {
-                    Log.e(
-                        "PERSONA_FIRESTORE",
-                        "ERROR SUBIENDO FOTO",
-                        e
-                    )
+                    Log.e("FOTO_CLOUDINARY","ERROR SUBIENDO FOTO",e)
                 }
             } else {
-                Log.w("PERSONA_FIRESTORE", "GOOGLE NO PROPORCIONÓ FOTO")
+                Log.w("FOTO_CLOUDINARY", "GOOGLE NO PROPORCIONÓ FOTO")
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PERSONA_FIRESTORE","ERROR GUARDANDO PERSONA",e)
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun subirFotoCloudinary(bytes: ByteArray,uid: String): String = withContext(Dispatchers.IO) {
+        require(CLOUD_NAME != "TU_CLOUD_NAME" && UPLOAD_PRESET != "TU_UPLOAD_PRESET") {
+            "Configuración OK CLOUD_NAME y UPLOAD_PRESET en PersonaService"
+        }
+        val boundary = "----AndroidCloudinary${System.currentTimeMillis()}"
+        val endpoint = "https://api.cloudinary.com/v1_1/$CLOUD_NAME/image/upload"
+        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            connectTimeout = 15000
+            readTimeout = 30000
+            setRequestProperty("Content-Type","multipart/form-data; boundary=$boundary")
+        }
+        try {
+            DataOutputStream(connection.outputStream).use { output ->
+                fun campo(nombre: String, valor: String) {
+                    output.writeBytes("--$boundary\r\n")
+                    output.writeBytes("Content-Disposition: form-data; name=\"$nombre\"\r\n\r\n")
+                    output.write(valor.toByteArray(Charsets.UTF_8))
+                    output.writeBytes("\r\n")
+                }
+                campo("upload_preset", UPLOAD_PRESET)
+                campo("folder", "personas")
+                campo("public_id","${uid}_${System.currentTimeMillis()}")
+
+                output.writeBytes("--$boundary\r\n")
+                output.writeBytes("Content-Disposition: form-data; "+"name=\"file\"; filename=\"perfil.jpg\"\r\n")
+                output.writeBytes("Content-Type: image/jpeg\r\n\r\n")
+                output.write(bytes)
+                output.writeBytes("\r\n--$boundary--\r\n")
+                output.flush()
             }
 
-            Result.success(Unit)
+            val status = connection.responseCode
+            val responseStream = if (status in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
 
-        } catch (e: Exception) {
-            Log.e(
-                "PERSONA_FIRESTORE",
-                "ERROR GUARDANDO PERSONA",
-                e
-            )
+            val response = responseStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                Log.e("CLOUDINARY", "Cloudinary HTTP $status: $response")
+                throw Exception("Cloudinary rechazó la imagen (HTTP $status)")
+            }
 
-            Result.failure(e)
+            val json = JSONObject(response)
+            val secureUrl = json.optString("secure_url")
+            require(secureUrl.startsWith("https://")) { "Cloudinary no devolvió una URL HTTPS válida" }
+            secureUrl
+        } finally {
+            connection.disconnect()
         }
     }
 }
-    /*suspend fun registrarPersonaDesdeGoogle(): Result<Unit> {
-        Log.d(
-            "PERSONA_FIRESTORE",
-            "Entró a registrarPersonaDesdeGoogle()"
-        )
-        return try {
-            val user = auth.currentUser?: throw Exception(
-                    "No existe una sesión activa en Firebase"
-                )
-
-            val uid = user.uid
-
-            Log.i("PERSONA_FIRESTORE", "UID: $uid")
-            Log.i("PERSONA_FIRESTORE", "Correo: ${user.email}")
-
-            val referencia = firestore.collection("persona").document(uid)
-            Log.d("PERSONA_FIRESTORE", "ANTES DE CONSULTAR DOCUMENTO")
-            val documento = referencia.get().await()
-            Log.d("PERSONA_FIRESTORE", "DOCUMENTO CONSULTADO")
-            val datos = hashMapOf<String, Any>(
-                "uid" to uid,
-                "nombre" to (user.displayName ?: ""),
-                "email" to (user.email ?: ""),
-                "fotoUrl" to (documento.getString("fotoUrl") ?: ""),
-                "fechaRegistro" to (
-                        documento.getLong("fechaRegistro")
-                            ?: System.currentTimeMillis()
-                        )
-            )
-            Log.d("PERSONA_FIRESTORE", "ANTES DE GUARDAR DOCUMENTO")
-            //Registra en Base de Datos (FireStorage)
-            referencia.set(datos).await()
-
-            Log.d(
-                "PERSONA_FIRESTORE",
-                "DOCUMENTO GUARDADO: persona/$uid"
-            )
-
-            // 2. Subir la foto por separado.
-            val fotoGoogle = user.photoUrl
-
-            if (fotoGoogle != null) {
-                try {
-                    val bytes = withContext(Dispatchers.IO) {
-                        URL(fotoGoogle.toString())
-                            .openStream()
-                            .use { it.readBytes() }
-                    }
-
-                    val archivo = storage.reference
-                        .child("imagenes/persona/$uid/perfil.jpg")
-
-                    //Conversión y guardado de foto
-                    archivo.putBytes(bytes).await()
-
-                    val fotoUrl = archivo.downloadUrl
-                        .await()
-                        .toString()
-                    // Guardar URL creada para mi foto en FireStorage
-                    referencia.update(
-                        "fotoUrl", fotoUrl
-                    ).await()
-
-                    Log.i(
-                        "PERSONA_FIRESTORE",
-                        "FOTO SUBIDA Y URL ACTUALIZADA"
-                    )
-                } catch (e: Exception) {
-                    Log.e(
-                        "PERSONA_FIRESTORE",
-                        "La persona se guardó, pero falló la foto",
-                        e
-                    )
-                }
-            } else {
-                Log.w(
-                    "PERSONA_FIRESTORE",
-                    "Google no proporcionó una fotografía"
-                )
-            }
-
-            Result.success(Unit)
-
-        } catch (e: Exception) {
-            Log.e(
-                "PERSONA_FIRESTORE",
-                "ERROR GUARDANDO PERSONA",
-                e
-            )
-
-            Result.failure(e)
-        }
-    }
-}*/
