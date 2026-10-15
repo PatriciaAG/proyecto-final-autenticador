@@ -1,7 +1,6 @@
 package com.example.proyecto_final
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -26,17 +25,8 @@ class MainActivity : FragmentActivity(){
             Column (
                 modifier = Modifier.fillMaxSize().statusBarsPadding()
             ) {
-
-                ReproductorAudio(
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Navegación debajo del reproductor
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
+                ReproductorAudio(modifier = Modifier.fillMaxWidth())
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     AppNavigation()
                 }
             }
