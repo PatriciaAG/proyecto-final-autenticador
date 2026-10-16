@@ -65,6 +65,8 @@ dependencies {
 
     //FireStore
     implementation(platform("com.google.firebase:firebase-bom:VERSION"))
+    //Cloudinary
+    implementation("com.google.firebase:firebase-messaging")
 
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")

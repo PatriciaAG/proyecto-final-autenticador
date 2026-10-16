@@ -87,7 +87,7 @@ class PersonaService {
     }
 
     private suspend fun subirFotoCloudinary(bytes: ByteArray,uid: String): String = withContext(Dispatchers.IO) {
-        require(CLOUD_NAME != "TU_CLOUD_NAME" && UPLOAD_PRESET != "TU_UPLOAD_PRESET") {
+        require(CLOUD_NAME != CLOUD_NAME && UPLOAD_PRESET != UPLOAD_PRESET) {
             "Configuración OK CLOUD_NAME y UPLOAD_PRESET en PersonaService"
         }
         val boundary = "----AndroidCloudinary${System.currentTimeMillis()}"

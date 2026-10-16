@@ -21,6 +21,7 @@ class MainActivity : FragmentActivity(){
 
         enableEdgeToEdge()
         //FirebaseApp.initializeApp(this)
+
         setContent {
             Column (
                 modifier = Modifier.fillMaxSize().statusBarsPadding()
