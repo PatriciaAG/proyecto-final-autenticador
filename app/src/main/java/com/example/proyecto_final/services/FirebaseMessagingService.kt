@@ -70,11 +70,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             .build()
 
         try {
-            NotificationManagerCompat.from(this)
-                .notify(
-                    System.currentTimeMillis().toInt(),
-                    notificacion
-                )
+            NotificationManagerCompat.from(this).notify(System.currentTimeMillis().toInt(),notificacion)
         } catch (error: SecurityException) {
             Log.e(TAG, "No hay permiso para mostrar notificaciones", error)
         }
@@ -82,18 +78,10 @@ class FirebaseMessagingService : FirebaseMessagingService() {
 
     private fun crearCanalNotificaciones() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val canal = NotificationChannel(
-                CHANNEL_ID,
-                "Notificaciones generales",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
+            val canal = NotificationChannel(CHANNEL_ID,"Notificaciones generales",NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Avisos de Mi Aplicación"
             }
-
-            val manager = getSystemService(
-                Context.NOTIFICATION_SERVICE
-            ) as NotificationManager
-
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(canal)
         }
     }
